@@ -1,0 +1,55 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+preamble {=
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+=}
+
+main reactor {
+  timer t(0, 3000 ms)
+  state interval: time = 100 ms;
+  state led_on: bool = false;
+  state pattern: int = 0;
+  state patternPart: int = 0;
+  logical action off;
+  logical action on;
+
+  reaction(startup) {=
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+  =}
+
+  reaction(t) -> on {=
+    if(self->pattern >= 4){
+        self->pattern = 1;
+    }
+    else{
+        self->pattern++;
+    }
+
+    lf_schedule(on, self->interval);
+  =}
+
+  reaction(off) -> on{=
+    self->patternPart ++;
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    if(!(self->patternPart >= self->pattern)){
+      lf_schedule(on, self->interval);
+    }
+    else{
+      self->patternPart = 0;
+    }
+
+  =}
+
+  reaction(on) -> off{=
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    lf_schedule(off, self->interval);
+  =}
+}

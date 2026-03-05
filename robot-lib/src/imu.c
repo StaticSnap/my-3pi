@@ -83,6 +83,7 @@ void _imu_reset() {
         i2c_read_blocking(i2c0, _IMU_ADDR, &(cmd_buf[1]), 1, false);
     } while(cmd_buf[1] & 0x01);
 }
+
 void _imu_set() {
     // imu general configuration
     uint8_t cmd_buf[2] = {_IMU_REG_CTRL3_C, 0x00};
@@ -103,6 +104,14 @@ void _imu_set() {
     // write to CTRL2_G
     cmd_gyro_buf[1] = (odr_gyro << 4 | fs_gyro << 1) | 0b0;
     i2c_write_blocking(i2c0, _IMU_ADDR, cmd_gyro_buf, 2, false);
+}
+
+void imu_set(uint8_t reg, uint8_t value) {
+    uint8_t buff[2];
+    buff[0] = reg;
+    buff[1] = value;
+
+    i2c_write_blocking(i2c0, _IMU_ADDR, buff, 2, false);
 }
 
 uint imu_read_acc(imu_inst_t* imu_inst, axes_data_t* acc_data) {

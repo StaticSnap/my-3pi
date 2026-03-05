@@ -48,6 +48,9 @@ uint imu_read_acc(imu_inst_t* imu_inst, axes_data_t* acc_data);
 /// @param gyro_data 
 uint imu_read_gyro(imu_inst_t* imu_inst, axes_data_t* gyro_data);
 
+//function to let me change any register I want
+void imu_set(uint8_t reg, uint8_t value);
+
 // private helpers
 /// @brief sets configuration registers
 void _imu_set();

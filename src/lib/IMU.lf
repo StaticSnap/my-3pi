@@ -43,6 +43,8 @@ reactor IMUBase {
       _pololu_robot_imu_initialized = true;
       imu_init(&imu_instance);
     }
+    //change the range o fthe accelerometer to display 8g's of range
+    //imu_set(0x10,0b00111110);
   =}
 }
 
