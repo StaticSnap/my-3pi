@@ -1,0 +1,92 @@
+/**
+ * Blink the default LED on the
+ * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a>.
+ * @author Abhi Gundrala
+ * @author Edward A. Lee
+ */
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "lib/Display.lf"
+
+preamble {=
+  #include <imu.h>
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+  #include <hardware/structs/ioqspi.h>
+  #include <hardware/sync.h>
+
+  //checkB needs to run in ram since flash storage is disabled during the function
+  static bool __no_inline_not_in_flash_func(checkB)(){
+      //disable interrupts and store their state to re-enable them later
+      uint32_t flags = save_and_disable_interrupts();
+
+      //Change the setting that prevents the polling of the but that button B is located on
+      hw_write_masked(&ioqspi_hw->io[1].ctrl,GPIO_OVERRIDE_LOW << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
+      IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
+
+      //wait for a bit to make sure the changes go into effect before reading
+      uint32_t start = timer_hw->timerawl;
+      while((uint32_t)(timer_hw->timerawl - start) < 2);
+
+      //actually read the bit
+      bool read = (sio_hw->gpio_hi_in & (1u << 1));
+
+      //turn back on the B blocker
+      hw_clear_bits(&ioqspi_hw->io[1].ctrl, IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
+
+      //restore interrupts
+      restore_interrupts(flags);
+
+      return read;
+    }
+=}
+
+main reactor {
+  timer t(0, 250 ms)
+  display = new Display()
+  state countA: int = 0
+  state countB: int = 0
+  state pressedA: bool = false
+  state pressedB: bool = false
+  
+
+  reaction(startup) {=
+
+  =}
+
+  reaction(t) -> display.line0, display.line1 {=
+    if(!(checkB()) && !self->pressedB){
+      self->countB = self->countB + 1;
+      self->pressedB = true;
+    }
+    else if(checkB()){
+      self->pressedB = false;
+    }
+
+    if(!(sio_hw->gpio_in & (1u << 25)) && !self->pressedA){
+      self->countA = self->countA + 1;
+      self->pressedA = true;
+    }
+    else if(sio_hw->gpio_in & (1u << 25)){
+      self->pressedA = false;
+    }
+
+    if(!(sio_hw->gpio_in & (1u << 25)) && !(checkB())){
+      self->countA = 0;
+      self->countB = 0;
+    }
+    static char buf[25];
+    snprintf(buf, 25, "A count: %d", self->countA);
+    lf_set(display.line0, buf);
+    static char buf2[25];
+    snprintf(buf2, 25, "B count: %d", self->countB);
+    lf_set(display.line1, buf2);
+  =}
+}
